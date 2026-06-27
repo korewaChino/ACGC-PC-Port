@@ -111,7 +111,7 @@ static void aNPC_make_unitInfo(NPC_CONTROL_ACTOR* ctrl) {
     int x;
     int z;
     mActor_name_t* fg_p = mFI_UtNum2UtFG(1, 1);
-    
+
     for (z = 0; z < aNPC2_UNIT_Z_NUM; z++) {
         for (x = 0; x < aNPC2_UNIT_X_NUM; x++) {
             table[z][x] = *fg_p != RSV_NO;
@@ -521,7 +521,7 @@ static int aNPC_setupActor_proc(GAME_PLAY* play, mActor_name_t name, s8 idx, int
 
 #ifndef aNPC_NPC2
 #ifdef TARGET_PC
-#define aNPC_ACTOR_CLASS_SLOT_SIZE 0xA50
+#define aNPC_ACTOR_CLASS_SLOT_SIZE 0xC00
 #else
 #define aNPC_ACTOR_CLASS_SLOT_SIZE 0x9D0
 #endif

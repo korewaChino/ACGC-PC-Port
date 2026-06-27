@@ -31,7 +31,11 @@
 #ifdef TARGET_PC
 #ifndef _GBI_RUNTIME_PTR_HELPERS
 #define _GBI_RUNTIME_PTR_HELPERS
+#ifdef PC_64BIT
+_GBI_STATIC_ASSERT(sizeof(unsigned int) == 4, "GBI pointer packing requires 32-bit GBI words");
+#else
 _GBI_STATIC_ASSERT(sizeof(void*) == sizeof(unsigned int), "GBI pointer packing requires 32-bit pointers");
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,7 +50,14 @@ uintptr_t pc_gbi_unpack_runtime_ptr(unsigned int packed);
 /* GCC GNU extension: pointer-to-integer cast in static initializers.
    Safe on 32-bit where sizeof(void*) == sizeof(unsigned int). */
 #ifndef _GBI_STATIC_PTR
+#ifdef __LP64__
+/* On 64-bit, uintptr_t->u32 narrowing is NOT a constant expression in C11/GCC.
+   We emit 0 as a placeholder here; the real pointer values are patched in at
+   startup by pc_gbi_fixup_static_dls(). */
+#define _GBI_STATIC_PTR(s) ((unsigned int)0)
+#else
 #define _GBI_STATIC_PTR(s) (unsigned int)(uintptr_t)(s)
+#endif
 #endif
 /* Runtime display-list commands tag real PC pointers in bit 0. N64 segmented
    addresses are integer expressions and are left unchanged. */
@@ -3222,9 +3233,9 @@ typedef union {
 
 #define	gsSetImage(cmd, fmt, siz, width, i)				\
 {{									\
-	_SHIFTL(cmd, 24, 8) | _SHIFTL(fmt, 21, 3) |			\
+	_SHIFTL(cmd, 24, 8) | _SHIFTL(fmt, 21, 3) |		\
 	_SHIFTL(siz, 19, 2) | _SHIFTL((width)-1, 0, 12),		\
-	(unsigned int)(i)						\
+	_GBI_STATIC_PTR(i)						\
 }}
 
 #define	gDPSetColorImage(pkt, f, s, w, i)	gSetImage(pkt, G_SETCIMG, f, s, w, i)

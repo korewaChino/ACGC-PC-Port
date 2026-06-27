@@ -58,7 +58,10 @@ else()
     add_compile_options(
         -fno-strict-aliasing
         -fwrapv
+        # wtf
+        -fPIE
     )
+    add_link_options(-pie)
 endif()
 
 # =============================================================================
@@ -116,19 +119,24 @@ if(NOT WIN32)
         message(STATUS "SDL2 source: ${sdl2_SOURCE_DIR}")
         message(STATUS "SDL2 build:  ${sdl2_BINARY_DIR}")
 
-        set(ENV{CC} "${CMAKE_C_COMPILER} ${SDL_CFLAGS}")
-        set(ENV{CXX} "${CMAKE_CXX_COMPILER} ${SDL_CXXFLAGS}")
+        if(PC_64BIT)
+            set(SDL_HOST "x86_64-linux-gnu")
+        else()
+            set(SDL_HOST "i386-linux-gnu")
+        endif()
+        set(ENV{CC} "${CMAKE_C_COMPILER} ${SDL_CFLAGS} -fPIC")
+        set(ENV{CXX} "${CMAKE_CXX_COMPILER} ${SDL_CXXFLAGS} -fPIC")
 
         execute_process(
-            COMMAND ${sdl2_SOURCE_DIR}/configure
-                --build=x86_64-linux-gnu
-                --host=i386-linux-gnu
-                --disable-shared --enable-static
-                --disable-video-wayland --disable-video-vulkan
-                --prefix=${sdl2_BINARY_DIR}/install
-            WORKING_DIRECTORY ${sdl2_BINARY_DIR}
-            RESULT_VARIABLE SDL_CONFIGURE_RESULT
-        )
+                COMMAND ${sdl2_SOURCE_DIR}/configure
+                    --build=x86_64-linux-gnu
+                    --host=${SDL_HOST}
+                    --disable-shared --enable-static
+                    --disable-video-wayland --disable-video-vulkan
+                    --prefix=${sdl2_BINARY_DIR}/install
+                WORKING_DIRECTORY ${sdl2_BINARY_DIR}
+                RESULT_VARIABLE SDL_CONFIGURE_RESULT
+            )
         if(NOT SDL_CONFIGURE_RESULT EQUAL 0)
             message(FATAL_ERROR "SDL2 configure failed")
         endif()
@@ -503,11 +511,10 @@ endif()
 if(WIN32)
     target_link_libraries(ac_pc opengl32 winmm imm32 version setupapi)
 else()
-    # Do NOT link OpenGL directly on Linux: the vendored static SDL2 handles
-    # GL loading at runtime via dlopen("libGL.so.1").  Direct linking pulls
-    # in libGLX_mesa → libgallium → libLLVM at startup, which triggers a
-    # static-init crash in 32-bit LLVM on some distros.
-    # pc_main.c handles LLVM preloading before SDL_Init to work around this.
+    # XXX: something with LLVM causes a static-init crash
+    # especially on Fedora
+    # may be related to https://github.com/llvm/llvm-project/issues/47565
+    # https://reviews.llvm.org/D105959
     target_link_libraries(ac_pc dl pthread m)
 endif()
 

@@ -21,13 +21,24 @@ extern "C" {
 
 #ifndef _GBI_RUNTIME_PTR_HELPERS
 #define _GBI_RUNTIME_PTR_HELPERS
+#ifdef PC_64BIT
+_GBI_STATIC_ASSERT(sizeof(unsigned int) == 4, "GBI pointer packing requires 32-bit GBI words");
+#else
 _GBI_STATIC_ASSERT(sizeof(void*) == sizeof(unsigned int), "GBI pointer packing requires 32-bit pointers");
+#endif
 
 unsigned int pc_gbi_pack_runtime_ptr(uintptr_t addr, int is_ptr, const char* expr, const char* file, int line);
 uintptr_t pc_gbi_unpack_runtime_ptr(unsigned int packed);
 #endif
 
+#ifdef __LP64__
+/* On 64-bit, uintptr_t->u32 narrowing is NOT a constant expression in C11/GCC.
+   We emit 0 as a placeholder. Real pointer values are patched at startup
+   by pc_gbi_fixup_static_dls(). */
+#define _GBI_STATIC_PTR(s) ((unsigned int)0)
+#else
 #define _GBI_STATIC_PTR(s) (unsigned int)(uintptr_t)(s)
+#endif
 #define _GBI_IS_RUNTIME_PTR_EXPR(s) (__builtin_classify_type(s) == 5 || __builtin_classify_type(s) == 14)
 #define _GBI_RUNTIME_PTR(s) \
     pc_gbi_pack_runtime_ptr((uintptr_t)(s), _GBI_IS_RUNTIME_PTR_EXPR(s), #s, __FILE__, __LINE__)

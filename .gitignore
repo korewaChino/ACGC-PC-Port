@@ -53,3 +53,6 @@ include/PR/
 include/gcc/
 include/compiler/gcc/stdlib.h
 rom/
+
+keybindings.ini
+settings.ini

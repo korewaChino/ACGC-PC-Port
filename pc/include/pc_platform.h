@@ -4,9 +4,10 @@
 
 /* 32-bit required: decomp code (JSystem, emu64) casts pointers to u32 */
 #include <stdint.h>
-#if UINTPTR_MAX != 0xFFFFFFFFu
-#error "This project must be compiled as 32-bit (pointer size != 4 bytes)"
-#endif
+/* Disabled for 64-bit build */
+/* #if UINTPTR_MAX != 0xFFFFFFFFu */
+/* #error "This project must be compiled as 32-bit (pointer size != 4 bytes)" */
+/* #endif */
 
 #define SDL_MAIN_HANDLED
 #include <SDL.h>

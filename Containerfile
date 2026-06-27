@@ -1,5 +1,5 @@
 # Build container for Animal Crossing PC port (32-bit)
-FROM fedora:44
+FROM fedora:43
 
 # Build-time Mesa (26.1.3 from updates is fine for headers; the broken
 # 32-bit LLVM is only a runtime concern on the host)

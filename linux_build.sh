@@ -40,7 +40,7 @@ if [ ! -f Makefile ]; then
         -DCMAKE_C_COMPILER=gcc \
         -DCMAKE_CXX_COMPILER=g++ \
         -DCMAKE_C_FLAGS="-m32" \
-        -DCMAKE_CXX_FLAGS="-m32 -isystem /usr/include/c++/16/i686-redhat-linux" \
+        -DCMAKE_CXX_FLAGS="-m32 -isystem /usr/include/c++/$(g++ -dumpversion)/i686-redhat-linux" \
         -DCMAKE_SKIP_RPATH=ON \
         -DCMAKE_BUILD_TYPE=Release
 fi
