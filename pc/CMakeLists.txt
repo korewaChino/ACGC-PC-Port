@@ -120,7 +120,7 @@ if(NOT SDL2_FOUND)
             "SDL2 not found!\n"
             "  macOS:         brew install sdl2\n"
             "  Linux:         sudo apt install libsdl2-dev  (Debian/Ubuntu)\n"
-            "                 sudo dnf install SDL2-devel   (Fedora)\n"
+            "                 sudo dnf install sdl2-compat-devel   (Fedora)\n"
             "  Windows/MSYS2: pacman -S mingw-w64-i686-SDL2\n"
             "  Or download SDL2 development libraries to ${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2")
     endif()

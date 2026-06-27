@@ -3,19 +3,16 @@
 // For more documentation on how to configure debug tasks,
 // see: https://zed.dev/docs/debugger
 //
-// IMPORTANT: The 32-bit binary requires X11 (DISPLAY) to run.
-// Inside the dev container, there is no X11 display available
-// and Mesa's offscreen EGL driver crashes due to a known Fedora 44
-// 32-bit LLVM 22.1 static-init bug.
+// IMPORTANT: The binary requires X11 (DISPLAY) to run.
 //
 // To test on the host outside the container:
-//   cd pc/build32/bin && ./AnimalCrossing --verbose
+//   cd pc/build/bin && ./AnimalCrossing --verbose
 [
     {
         "adapter": "GDB",
-        "label": "Launch AnimalCrossing (container - X11 required)",
-        "program": "$ZED_WORKTREE_ROOT/pc/build32/bin/AnimalCrossing",
-        "cwd": "$ZED_WORKTREE_ROOT/pc/build32/bin",
+        "label": "Launch AnimalCrossing (container - Fedora 44 64-bit)",
+        "program": "$ZED_WORKTREE_ROOT/pc/build/bin/AnimalCrossing",
+        "cwd": "$ZED_WORKTREE_ROOT/pc/build/bin",
         "arguments": ["--verbose"],
         "env": {
             "DISPLAY": "${env:DISPLAY}",
@@ -28,16 +25,16 @@
     {
         "adapter": "GDB",
         "label": "Launch AnimalCrossing (host - verbose)",
-        "program": "$ZED_WORKTREE_ROOT/pc/build32/bin/AnimalCrossing",
-        "cwd": "$ZED_WORKTREE_ROOT/pc/build32/bin",
+        "program": "$ZED_WORKTREE_ROOT/pc/build/bin/AnimalCrossing",
+        "cwd": "$ZED_WORKTREE_ROOT/pc/build/bin",
         "arguments": ["--verbose"],
         "request": "launch"
     },
     {
         "adapter": "GDB",
         "label": "Launch AnimalCrossing (host - release)",
-        "program": "$ZED_WORKTREE_ROOT/pc/build32/bin/AnimalCrossing",
-        "cwd": "$ZED_WORKTREE_ROOT/pc/build32/bin",
+        "program": "$ZED_WORKTREE_ROOT/pc/build/bin/AnimalCrossing",
+        "cwd": "$ZED_WORKTREE_ROOT/pc/build/bin",
         "request": "launch"
     }
 ]

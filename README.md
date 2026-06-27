@@ -108,7 +108,7 @@ Only needed if you want to modify the code. Otherwise, use the [pre-built releas
    sudo apt install gcc g++ cmake libsdl2-dev
 
    # Fedora
-   sudo dnf install gcc gcc-c++ cmake SDL2-devel
+   sudo dnf install gcc gcc-c++ cmake sdl2-compat-devel
    ```
 
 2. Clone and build:

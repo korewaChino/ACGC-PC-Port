@@ -1,5 +1,5 @@
 {
-    "name": "ACGC PC Port (32-bit debug)",
+    "name": "ACGC PC Port (Fedora 44 64-bit debug)",
     "build": {
         "dockerfile": "Containerfile.dev"
     },
@@ -13,7 +13,7 @@
         "NO_AT_BRIDGE": "1"
     },
     "mounts": [
-        "type=bind,source=/tmp/.X11-unix,target=/tmp/.X11-unix",
+        "type=bind,source=/tmp/.X11-unix,target=/tmp/.X11-unix"
         // "type=bind,source=${localEnv:HOME}/.Xauthority,target=/root/.Xauthority"
     ],
     "runArgs": ["--device=/dev/dri", "--net=host"],
