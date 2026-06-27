@@ -120,6 +120,12 @@ Only needed if you want to modify the code. Otherwise, use the [pre-built releas
    make -j$(nproc)
    ```
 
+   To build as a position-independent executable (PIE), configure with:
+   ```bash
+   cmake .. -DPC_ENABLE_PIE=ON
+   make -j$(nproc)
+   ```
+
 3. Place your disc image in `build/bin/rom/` and run:
    ```bash
    build/bin/AnimalCrossing

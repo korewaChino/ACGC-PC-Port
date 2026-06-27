@@ -1,4 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
+
+if(POLICY CMP0083)
+    cmake_policy(SET CMP0083 NEW)
+endif()
+
 project(ac_pc C CXX)
 
 set(CMAKE_C_STANDARD 11)
@@ -11,6 +16,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # Options
 option(PC_CONSOLE "Show console window (disables -mwindows, useful for debugging)" OFF)
+option(PC_ENABLE_PIE "Build AnimalCrossing as a position-independent executable (PIE)" OFF)
 
 # =============================================================================
 # Platform info
@@ -435,6 +441,12 @@ add_executable(ac_pc
     ${GAME_CXX_SOURCES}
     ${RC_FILE}
 )
+
+if(PC_ENABLE_PIE)
+    include(CheckPIESupported)
+    check_pie_supported(LANGUAGES C CXX)
+    set_target_properties(ac_pc glad PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+endif()
 
 # Link SDL2 without SDL2main (we define SDL_MAIN_HANDLED)
 if(TARGET SDL2::SDL2)
