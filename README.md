@@ -30,9 +30,32 @@ Run the setup step once after cloning:
 python3 configure.py
 ```
 
-The Linux build supports both the original 32-bit target and an experimental 64-bit target.
+The Linux build supports both the original 32-bit target and an experimental 64-bit target. Build directories are always architecture-based:
 
-#### 32-bit build
+- `pc/build32` for 32-bit builds
+- `pc/build64` for 64-bit builds
+
+Optional variants such as PIE or system SDL2/`sdl2-compat` are selected with flags, not separate build directory names.
+
+#### Script build
+
+The helper script keeps the build directory convention above:
+
+```bash
+# 32-bit default build -> pc/build32
+./linux_build.sh
+
+# 64-bit experimental build -> pc/build64
+./linux_build.sh --64
+
+# 64-bit using system SDL2/sdl2-compat -> pc/build64
+./linux_build.sh --64 --system-sdl2
+
+# 64-bit PIE + system SDL2/sdl2-compat -> pc/build64
+./linux_build.sh --64 --pie --system-sdl2 --clean
+```
+
+#### Manual 32-bit build
 
 The 32-bit build is the default supported Linux target. It uses `-m32` and builds a vendored static SDL2 by default.
 
@@ -56,7 +79,7 @@ Output:
 pc/build32/bin/AnimalCrossing
 ```
 
-#### 64-bit build experimental
+#### Manual 64-bit build experimental
 
 The 64-bit build avoids the 32-bit toolchain and multilib runtime, but it is still experimental. Some pointer-to-`u32` assumptions remain under active porting work.
 
@@ -86,7 +109,7 @@ pc/build64/bin/AnimalCrossing
 | `-DPC_SYSTEM_SDL2=ON` | `OFF` | Use system SDL2 / `sdl2-compat` instead of the vendored static SDL2 build. Requires system SDL2 development files such as `sdl2.pc`. |
 | `-DPC_CONSOLE=ON` | `OFF` | Windows-only: keep a console window visible for debugging. |
 
-Examples:
+Examples, all from inside `pc/build64`:
 
 ```bash
 # 64-bit + PIE
