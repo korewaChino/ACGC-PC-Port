@@ -13,6 +13,7 @@ set(CMAKE_CXX_STANDARD 17)
 option(PC_CONSOLE "Show console window (disables -mwindows, useful for debugging)" OFF)
 option(PC_64BIT "Build as 64-bit (experimental) — requires ptr_int_t port work" OFF)
 option(PC_PIE "Build Linux executable as PIE (experimental; also builds vendored SDL2 as PIC)" OFF)
+option(PC_SYSTEM_SDL2 "Use system SDL2/sdl2-compat instead of vendored static SDL2 on Linux" OFF)
 
 # =============================================================================
 # Architecture: default 32-bit, optional 64-bit
@@ -97,45 +98,55 @@ include_directories(
 #
 # Windows: uses system SDL2 from MSYS2 or downloaded MinGW dev package.
 if(NOT WIN32)
-    include(FetchContent)
-
-    # Propagate the parent's -m32 flag to SDL2's build if present.
-    # SDL2's configure picks up CC/CXX from the environment.
-    set(SDL_CFLAGS "")
-    if(CMAKE_C_FLAGS MATCHES "-m32")
-        set(SDL_CFLAGS "-m32")
-    endif()
-    if(CMAKE_CXX_FLAGS MATCHES "-m32")
-        set(SDL_CXXFLAGS "-m32")
-    endif()
-
-    FetchContent_Declare(SDL2
-        URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.10/SDL2-2.30.10.tar.gz
-        URL_HASH SHA256=f59adf36a0fcf4c94198e7d3d776c1b3824211ab7aeebeb31fe19836661196aa
-    )
-    FetchContent_GetProperties(SDL2)
-    if(NOT SDL2_POPULATED)
-        FetchContent_Populate(SDL2)
-
-        # SDL2 uses autotools, so we drive configure + make directly.
-        # FetchContent sets sdl2_SOURCE_DIR and sdl2_BINARY_DIR.
-        message(STATUS "SDL2 source: ${sdl2_SOURCE_DIR}")
-        message(STATUS "SDL2 build:  ${sdl2_BINARY_DIR}")
-
-        if(PC_64BIT)
-            set(SDL_HOST "x86_64-linux-gnu")
-        else()
-            set(SDL_HOST "i386-linux-gnu")
+    if(PC_SYSTEM_SDL2)
+        # Linux system SDL2 path. On Fedora this may resolve to sdl2-compat.
+        find_package(SDL2 QUIET)
+        if(NOT SDL2_FOUND)
+            find_package(PkgConfig REQUIRED)
+            pkg_check_modules(SDL2 REQUIRED sdl2)
         endif()
-        if(PC_PIE)
-            set(SDL_PIC_FLAGS "-fPIC")
-        else()
-            set(SDL_PIC_FLAGS "")
-        endif()
-        set(ENV{CC} "${CMAKE_C_COMPILER} ${SDL_CFLAGS} ${SDL_PIC_FLAGS}")
-        set(ENV{CXX} "${CMAKE_CXX_COMPILER} ${SDL_CXXFLAGS} ${SDL_PIC_FLAGS}")
+        message(STATUS "SDL2: using system SDL2/sdl2-compat")
+    else()
+        include(FetchContent)
 
-        execute_process(
+        # Propagate the parent's -m32 flag to SDL2's build if present.
+        # SDL2's configure picks up CC/CXX from the environment.
+        set(SDL_CFLAGS "")
+        set(SDL_CXXFLAGS "")
+        if(CMAKE_C_FLAGS MATCHES "-m32")
+            set(SDL_CFLAGS "-m32")
+        endif()
+        if(CMAKE_CXX_FLAGS MATCHES "-m32")
+            set(SDL_CXXFLAGS "-m32")
+        endif()
+
+        FetchContent_Declare(SDL2
+            URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.10/SDL2-2.30.10.tar.gz
+            URL_HASH SHA256=f59adf36a0fcf4c94198e7d3d776c1b3824211ab7aeebeb31fe19836661196aa
+        )
+        FetchContent_GetProperties(SDL2)
+        if(NOT SDL2_POPULATED)
+            FetchContent_Populate(SDL2)
+
+            # SDL2 uses autotools, so we drive configure + make directly.
+            # FetchContent sets sdl2_SOURCE_DIR and sdl2_BINARY_DIR.
+            message(STATUS "SDL2 source: ${sdl2_SOURCE_DIR}")
+            message(STATUS "SDL2 build:  ${sdl2_BINARY_DIR}")
+
+            if(PC_64BIT)
+                set(SDL_HOST "x86_64-linux-gnu")
+            else()
+                set(SDL_HOST "i386-linux-gnu")
+            endif()
+            if(PC_PIE)
+                set(SDL_PIC_FLAGS "-fPIC")
+            else()
+                set(SDL_PIC_FLAGS "")
+            endif()
+            set(ENV{CC} "${CMAKE_C_COMPILER} ${SDL_CFLAGS} ${SDL_PIC_FLAGS}")
+            set(ENV{CXX} "${CMAKE_CXX_COMPILER} ${SDL_CXXFLAGS} ${SDL_PIC_FLAGS}")
+
+            execute_process(
                 COMMAND ${sdl2_SOURCE_DIR}/configure
                     --build=x86_64-linux-gnu
                     --host=${SDL_HOST}
@@ -145,33 +156,34 @@ if(NOT WIN32)
                 WORKING_DIRECTORY ${sdl2_BINARY_DIR}
                 RESULT_VARIABLE SDL_CONFIGURE_RESULT
             )
-        if(NOT SDL_CONFIGURE_RESULT EQUAL 0)
-            message(FATAL_ERROR "SDL2 configure failed")
+            if(NOT SDL_CONFIGURE_RESULT EQUAL 0)
+                message(FATAL_ERROR "SDL2 configure failed")
+            endif()
+
+            execute_process(
+                COMMAND make -j
+                WORKING_DIRECTORY ${sdl2_BINARY_DIR}
+                RESULT_VARIABLE SDL_BUILD_RESULT
+            )
+            if(NOT SDL_BUILD_RESULT EQUAL 0)
+                message(FATAL_ERROR "SDL2 build failed")
+            endif()
+
+            execute_process(
+                COMMAND make install
+                WORKING_DIRECTORY ${sdl2_BINARY_DIR}
+                RESULT_VARIABLE SDL_INSTALL_RESULT
+            )
+            if(NOT SDL_INSTALL_RESULT EQUAL 0)
+                message(FATAL_ERROR "SDL2 install failed")
+            endif()
         endif()
 
-        execute_process(
-            COMMAND make -j
-            WORKING_DIRECTORY ${sdl2_BINARY_DIR}
-            RESULT_VARIABLE SDL_BUILD_RESULT
-        )
-        if(NOT SDL_BUILD_RESULT EQUAL 0)
-            message(FATAL_ERROR "SDL2 build failed")
-        endif()
-
-        execute_process(
-            COMMAND make install
-            WORKING_DIRECTORY ${sdl2_BINARY_DIR}
-            RESULT_VARIABLE SDL_INSTALL_RESULT
-        )
-        if(NOT SDL_INSTALL_RESULT EQUAL 0)
-            message(FATAL_ERROR "SDL2 install failed")
-        endif()
+        set(SDL2_INCLUDE_DIRS "${sdl2_BINARY_DIR}/install/include/SDL2")
+        set(SDL2_LIBRARIES "${sdl2_BINARY_DIR}/install/lib/libSDL2.a")
+        set(SDL2_FOUND TRUE)
+        message(STATUS "SDL2: built from source (FetchContent)")
     endif()
-
-    set(SDL2_INCLUDE_DIRS "${sdl2_BINARY_DIR}/install/include/SDL2")
-    set(SDL2_LIBRARIES "${sdl2_BINARY_DIR}/install/lib/libSDL2.a")
-    set(SDL2_FOUND TRUE)
-    message(STATUS "SDL2: built from source (FetchContent)")
 else()
     # Windows: try system SDL2 (MSYS2 or downloaded MinGW package)
     set(SDL2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2/cmake" CACHE PATH "SDL2 cmake dir")

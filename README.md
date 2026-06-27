@@ -22,7 +22,92 @@ The game reads all assets directly from the disc image at startup. No extraction
 
 Only needed if you want to modify the code. Otherwise, use the [pre-built release](https://github.com/flyngmt/ACGC-PC-Port/releases) above.
 
-### 🐧 Linux (Container Build)
+### 🐧 Linux
+
+Run the setup step once after cloning:
+
+```bash
+python3 configure.py
+```
+
+The Linux build supports both the original 32-bit target and an experimental 64-bit target.
+
+#### 32-bit build
+
+The 32-bit build is the default supported Linux target. It uses `-m32` and builds a vendored static SDL2 by default.
+
+```bash
+rm -rf pc/build32
+mkdir -p pc/build32
+cd pc/build32
+cmake .. \
+  -DCMAKE_C_COMPILER=gcc \
+  -DCMAKE_CXX_COMPILER=g++ \
+  -DCMAKE_C_FLAGS="-m32" \
+  -DCMAKE_CXX_FLAGS="-m32 -isystem /usr/include/c++/$(g++ -dumpversion)/i686-redhat-linux" \
+  -DCMAKE_SKIP_RPATH=ON \
+  -DCMAKE_BUILD_TYPE=Release
+make -j"$(nproc)"
+```
+
+Output:
+
+```text
+pc/build32/bin/AnimalCrossing
+```
+
+#### 64-bit build experimental
+
+The 64-bit build avoids the 32-bit toolchain and multilib runtime, but it is still experimental. Some pointer-to-`u32` assumptions remain under active porting work.
+
+```bash
+rm -rf pc/build64
+mkdir -p pc/build64
+cd pc/build64
+cmake .. \
+  -DPC_64BIT=ON \
+  -DCMAKE_SKIP_RPATH=ON \
+  -DCMAKE_BUILD_TYPE=Release
+make -j"$(nproc)"
+```
+
+Output:
+
+```text
+pc/build64/bin/AnimalCrossing
+```
+
+#### Optional Linux CMake flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-DPC_64BIT=ON` | `OFF` | Build the experimental 64-bit port. Required when using a 64-bit compiler. |
+| `-DPC_PIE=ON` | `OFF` | Build the Linux executable as PIE (`-fPIE`/`-pie`). Also builds vendored SDL2 with PIC flags. Experimental. |
+| `-DPC_SYSTEM_SDL2=ON` | `OFF` | Use system SDL2 / `sdl2-compat` instead of the vendored static SDL2 build. Requires system SDL2 development files such as `sdl2.pc`. |
+| `-DPC_CONSOLE=ON` | `OFF` | Windows-only: keep a console window visible for debugging. |
+
+Examples:
+
+```bash
+# 64-bit + PIE
+cmake .. -DPC_64BIT=ON -DPC_PIE=ON -DCMAKE_SKIP_RPATH=ON -DCMAKE_BUILD_TYPE=Release
+
+# 64-bit + system SDL2/sdl2-compat
+cmake .. -DPC_64BIT=ON -DPC_SYSTEM_SDL2=ON -DCMAKE_SKIP_RPATH=ON -DCMAKE_BUILD_TYPE=Release
+
+# 64-bit + PIE + system SDL2/sdl2-compat
+cmake .. -DPC_64BIT=ON -DPC_PIE=ON -DPC_SYSTEM_SDL2=ON -DCMAKE_SKIP_RPATH=ON -DCMAKE_BUILD_TYPE=Release
+```
+
+On Fedora, `PC_SYSTEM_SDL2=ON` typically requires:
+
+```bash
+sudo dnf install SDL2-devel
+```
+
+or whichever package provides `sdl2.pc` for your SDL2/`sdl2-compat` setup.
+
+#### Container build 32-bit
 
 ```bash
 # Build the container (one-time, takes a few minutes)
@@ -40,18 +125,24 @@ cp path/to/your/game.ciso pc/build32/bin/rom/
 
 #### Running
 
-The binary links dynamically against 32-bit Mesa. Some distributions ship a
-broken 32-bit LLVM (crashes in static init). Use a distrobox for a known-good
-testing environment:
+Place your disc image in the matching build directory:
 
 ```bash
-distrobox assemble create --file distrobox-test.ini
-distrobox enter acgc-test
-cd /path/to/ACGC-PC-Port/pc/build32/bin
+mkdir -p pc/build64/bin/rom
+cp path/to/your/game.ciso pc/build64/bin/rom/
+cd pc/build64/bin
 ./AnimalCrossing --verbose
 ```
 
-See [distrobox-test.ini](distrobox-test.ini) for the runtime package list.
+For the 32-bit build, use `pc/build32/bin/rom/` instead.
+
+On Linux, OpenGL is provided by the host Mesa/driver stack. Some Fedora/multilib setups have LLVM/Mesa static-initializer crashes when the Mesa GLX/EGL vendor library loads LLVM. If you are debugging video-driver selection, force desktop OpenGL/X11 with:
+
+```bash
+DISPLAY=:0 SDL_VIDEODRIVER=x11 SDL_VIDEO_GL_DRIVER=libGL.so.1 ./AnimalCrossing --verbose
+```
+
+See [distrobox-test.ini](distrobox-test.ini) for a runtime package list.
 
 ### 🪟 Windows (MSYS2)
 
@@ -139,6 +230,9 @@ This project would not be possible without the work of the [ACreTeam](https://gi
 ## AI Notice
 
 AI tools such as Claude were used in this project (PC port code only).
+
+Additional: DeepSeek v4 and GPT-5.5 were also used for AI-assisted Linux porting
+and debugging.
 
 ## FAQ
 
