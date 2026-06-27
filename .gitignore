@@ -52,3 +52,4 @@ pc/lib/SDL2/
 include/PR/
 include/gcc/
 include/compiler/gcc/stdlib.h
+rom/

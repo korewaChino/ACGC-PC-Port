@@ -19,26 +19,14 @@ RUN dnf install -y \
     /tmp/test32 && echo '32-bit works!' && \
     dnf clean all
 
-# Build vendored SDL2 (32-bit static, no Wayland)
-RUN curl -sLO https://github.com/libsdl-org/SDL/releases/download/release-2.30.10/SDL2-2.30.10.tar.gz && \
-    tar xzf SDL2-2.30.10.tar.gz && \
-    cd SDL2-2.30.10 && mkdir build && cd build && \
-    ../configure \
-        CC="gcc -m32" CXX="g++ -m32" \
-        --build=x86_64-linux-gnu --host=i386-linux-gnu \
-        --disable-shared --enable-static \
-        --disable-video-wayland --disable-video-vulkan \
-        --prefix=/build/SDL2 && \
-    make -j$(nproc) && make install
-
-# Copy project, install vendored SDL2, and set up N64 SDK headers
+# Copy project and set up N64 SDK headers
 COPY . /build/project
-RUN cp -av /build/SDL2/* /build/project/pc/lib/SDL2/ && \
-    cd /build/project && python3 configure.py && \
+RUN cd /build/project && python3 configure.py && \
     echo 'configure.py complete'
 
 WORKDIR /build/project/pc
 
+# SDL2 is built automatically by CMake (FetchContent).
 # Fedora 44's GCC x86_64 driver with -m32 doesn't add the 32-bit C++ include
 # directory automatically. Add it via CMAKE_CXX_FLAGS.
 RUN rm -rf build32 && mkdir -p build32 && cd build32 && \

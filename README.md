@@ -1,4 +1,4 @@
-# Animal Crossing PC Port
+# Animal Crossing PC Port (now GCC compatible!)
 
 A native PC port of Animal Crossing (GameCube) built on top of the [ac-decomp](https://github.com/ACreTeam/ac-decomp) decompilation project.
 
@@ -22,18 +22,38 @@ The game reads all assets directly from the disc image at startup. No extraction
 
 Only needed if you want to modify the code. Otherwise, use the [pre-built release](https://github.com/flyngmt/ACGC-PC-Port/releases) above.
 
-### Requirements
-
-- **MSYS2** (https://www.msys2.org/)
-- **Animal Crossing (USA) disc image** (ISO, GCM, or CISO format)
-
-### MSYS2 Packages
-
-Open **MSYS2 MINGW32** from your Start menu and install:
+### 🐧 Linux (Container Build)
 
 ```bash
-pacman -S mingw-w64-i686-gcc mingw-w64-i686-cmake mingw-w64-i686-SDL2 mingw-w64-i686-make
+# Build the container (one-time, takes a few minutes)
+podman build --no-cache -t acgc-build -f Containerfile .
+
+# Extract the binary
+mkdir -p pc/build32/bin
+podman run --rm -v "$PWD/pc/build32":/out:Z acgc-build \
+    sh -c 'cp /build/project/pc/build32/bin/AnimalCrossing /out/'
+
+# Place your disc image
+mkdir -p pc/build32/bin/rom
+cp path/to/your/game.ciso pc/build32/bin/rom/
 ```
+
+#### Running
+
+The binary links dynamically against 32-bit Mesa. Some distributions ship a
+broken 32-bit LLVM (crashes in static init). Use a distrobox for a known-good
+testing environment:
+
+```bash
+distrobox assemble create --file distrobox-test.ini
+distrobox enter acgc-test
+cd /path/to/ACGC-PC-Port/pc/build32/bin
+./AnimalCrossing --verbose
+```
+
+See [distrobox-test.ini](distrobox-test.ini) for the runtime package list.
+
+### 🪟 Windows (MSYS2)
 
 ### Build Steps
 

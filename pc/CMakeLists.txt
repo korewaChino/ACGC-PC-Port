@@ -82,27 +82,83 @@ include_directories(
 )
 
 # =============================================================================
-# Find SDL2
+# SDL2 — FetchContent on Linux, system SDL2 on Windows
 # =============================================================================
-# On Linux, prefer vendored native SDL2 over sdl2-compat (system package).
-# sdl2-compat is an SDL2→SDL3 shim that pulls in Mesa/LLVM via EGL/GLX
-# and the 32-bit LLVM on some distros has a crashing static initializer.
-# The vendored SDL2 is built natively (--disable-video-wayland) and avoids
-# the SDL3/LLVM chain entirely.
-set(VENDORED_SDL2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2")
-set(VENDORED_SDL2_INCLUDE "${VENDORED_SDL2_DIR}/include/SDL2")
-set(VENDORED_SDL2_LIBRARY "${VENDORED_SDL2_DIR}/lib/libSDL2.a")
+# Linux: builds SDL2 from source at cmake configure time (32-bit static, no
+# Wayland/Vulkan).  This avoids the sdl2-compat (SDL2→SDL3 shim) package on
+# Fedora, which pulls in Mesa/LLVM and triggers a crashing static initializer
+# in 32-bit LLVM 22.1.x on some distros.
+#
+# Windows: uses system SDL2 from MSYS2 or downloaded MinGW dev package.
+if(NOT WIN32)
+    include(FetchContent)
 
-if(NOT WIN32 AND EXISTS "${VENDORED_SDL2_LIBRARY}")
-    set(SDL2_FOUND TRUE)
-    set(SDL2_INCLUDE_DIRS "${VENDORED_SDL2_INCLUDE}")
-    set(SDL2_LIBRARIES "${VENDORED_SDL2_LIBRARY}")
-    message(STATUS "Using vendored SDL2: ${VENDORED_SDL2_LIBRARY}")
-else()
-    # Try system SDL2 (cmake, then pkg-config, then fallback paths)
-    if(WIN32)
-        set(SDL2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2/cmake" CACHE PATH "SDL2 cmake dir")
+    # Propagate the parent's -m32 flag to SDL2's build if present.
+    # SDL2's configure picks up CC/CXX from the environment.
+    set(SDL_CFLAGS "")
+    if(CMAKE_C_FLAGS MATCHES "-m32")
+        set(SDL_CFLAGS "-m32")
     endif()
+    if(CMAKE_CXX_FLAGS MATCHES "-m32")
+        set(SDL_CXXFLAGS "-m32")
+    endif()
+
+    FetchContent_Declare(SDL2
+        URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.10/SDL2-2.30.10.tar.gz
+        URL_HASH SHA256=f59adf36a0fcf4c94198e7d3d776c1b3824211ab7aeebeb31fe19836661196aa
+    )
+    FetchContent_GetProperties(SDL2)
+    if(NOT SDL2_POPULATED)
+        FetchContent_Populate(SDL2)
+
+        # SDL2 uses autotools, so we drive configure + make directly.
+        # FetchContent sets sdl2_SOURCE_DIR and sdl2_BINARY_DIR.
+        message(STATUS "SDL2 source: ${sdl2_SOURCE_DIR}")
+        message(STATUS "SDL2 build:  ${sdl2_BINARY_DIR}")
+
+        set(ENV{CC} "${CMAKE_C_COMPILER} ${SDL_CFLAGS}")
+        set(ENV{CXX} "${CMAKE_CXX_COMPILER} ${SDL_CXXFLAGS}")
+
+        execute_process(
+            COMMAND ${sdl2_SOURCE_DIR}/configure
+                --build=x86_64-linux-gnu
+                --host=i386-linux-gnu
+                --disable-shared --enable-static
+                --disable-video-wayland --disable-video-vulkan
+                --prefix=${sdl2_BINARY_DIR}/install
+            WORKING_DIRECTORY ${sdl2_BINARY_DIR}
+            RESULT_VARIABLE SDL_CONFIGURE_RESULT
+        )
+        if(NOT SDL_CONFIGURE_RESULT EQUAL 0)
+            message(FATAL_ERROR "SDL2 configure failed")
+        endif()
+
+        execute_process(
+            COMMAND make -j
+            WORKING_DIRECTORY ${sdl2_BINARY_DIR}
+            RESULT_VARIABLE SDL_BUILD_RESULT
+        )
+        if(NOT SDL_BUILD_RESULT EQUAL 0)
+            message(FATAL_ERROR "SDL2 build failed")
+        endif()
+
+        execute_process(
+            COMMAND make install
+            WORKING_DIRECTORY ${sdl2_BINARY_DIR}
+            RESULT_VARIABLE SDL_INSTALL_RESULT
+        )
+        if(NOT SDL_INSTALL_RESULT EQUAL 0)
+            message(FATAL_ERROR "SDL2 install failed")
+        endif()
+    endif()
+
+    set(SDL2_INCLUDE_DIRS "${sdl2_BINARY_DIR}/install/include/SDL2")
+    set(SDL2_LIBRARIES "${sdl2_BINARY_DIR}/install/lib/libSDL2.a")
+    set(SDL2_FOUND TRUE)
+    message(STATUS "SDL2: built from source (FetchContent)")
+else()
+    # Windows: try system SDL2 (MSYS2 or downloaded MinGW package)
+    set(SDL2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2/cmake" CACHE PATH "SDL2 cmake dir")
     find_package(SDL2 QUIET)
     if(NOT SDL2_FOUND)
         find_package(PkgConfig QUIET)
@@ -111,42 +167,29 @@ else()
         endif()
     endif()
     if(NOT SDL2_FOUND)
-        if(WIN32)
-            # MSYS2 32-bit location
-            set(SDL2_MSYS2_DIR "C:/msys64/mingw32")
-            if(EXISTS "${SDL2_MSYS2_DIR}/include/SDL2/SDL.h")
+        # MSYS2 32-bit location
+        set(SDL2_MSYS2_DIR "C:/msys64/mingw32")
+        if(EXISTS "${SDL2_MSYS2_DIR}/include/SDL2/SDL.h")
+            set(SDL2_FOUND TRUE)
+            set(SDL2_INCLUDE_DIRS "${SDL2_MSYS2_DIR}/include/SDL2")
+            set(SDL2_LIBRARIES "${SDL2_MSYS2_DIR}/lib/libSDL2.a")
+        else()
+            # Downloaded SDL2 MinGW dev package (32-bit)
+            set(SDL2_DOWNLOAD_DIR "${DECOMP_ROOT}/../SDL2-2.30.10/i686-w64-mingw32")
+            if(EXISTS "${SDL2_DOWNLOAD_DIR}/include/SDL2/SDL.h")
                 set(SDL2_FOUND TRUE)
-                set(SDL2_INCLUDE_DIRS "${SDL2_MSYS2_DIR}/include/SDL2")
-                set(SDL2_LIBRARIES "${SDL2_MSYS2_DIR}/lib/libSDL2.a")
-            else()
-                # Downloaded SDL2 MinGW dev package (32-bit)
-                set(SDL2_DOWNLOAD_DIR "${DECOMP_ROOT}/../SDL2-2.30.10/i686-w64-mingw32")
-                if(EXISTS "${SDL2_DOWNLOAD_DIR}/include/SDL2/SDL.h")
-                    set(SDL2_FOUND TRUE)
-                    set(SDL2_INCLUDE_DIRS "${SDL2_DOWNLOAD_DIR}/include/SDL2")
-                    set(SDL2_LIBRARIES "${SDL2_DOWNLOAD_DIR}/lib/libSDL2.a")
-                else()
-                    # Last resort: vendored SDL2 in lib/
-                    set(SDL2_LOCAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2")
-                    if(EXISTS "${SDL2_LOCAL_DIR}/include/SDL.h")
-                        set(SDL2_FOUND TRUE)
-                        set(SDL2_INCLUDE_DIRS "${SDL2_LOCAL_DIR}/include")
-                        set(SDL2_LIBRARIES "${SDL2_LOCAL_DIR}/lib/libSDL2.a")
-                    endif()
-                endif()
+                set(SDL2_INCLUDE_DIRS "${SDL2_DOWNLOAD_DIR}/include/SDL2")
+                set(SDL2_LIBRARIES "${SDL2_DOWNLOAD_DIR}/lib/libSDL2.a")
             endif()
         endif()
-
-        if(NOT SDL2_FOUND)
-            message(FATAL_ERROR
-                "SDL2 not found!\n"
-                "  Linux:         sudo apt install libsdl2-dev:i386  (Debian/Ubuntu)\n"
-                "                 sudo dnf install SDL2-devel.i686   (Fedora)\n"
-                "  Windows/MSYS2: pacman -S mingw-w64-i686-SDL2\n"
-                "  Or download SDL2 development libraries to ${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2")
-        endif()
+    endif()
+    if(NOT SDL2_FOUND)
+        message(FATAL_ERROR
+            "SDL2 not found!\n"
+            "  Install with: pacman -S mingw-w64-i686-SDL2")
     endif()
 endif()
+
 include_directories(${SDL2_INCLUDE_DIRS})
 message(STATUS "SDL2 include: ${SDL2_INCLUDE_DIRS}")
 message(STATUS "SDL2 libraries: ${SDL2_LIBRARIES}")

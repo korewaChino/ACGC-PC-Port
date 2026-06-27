@@ -1,0 +1,22 @@
+{
+    "name": "ACGC PC Port (32-bit debug)",
+    "build": {
+        "dockerfile": "Containerfile.dev"
+    },
+    "containerEnv": {
+        "DISPLAY": ":0",
+        "WAYLAND_DISPLAY": "wayland-0",
+        "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
+        "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
+        "GTK_MODULES": "",
+        // "XAUTHORITY": "/root/.Xauthority",
+        "NO_AT_BRIDGE": "1"
+    },
+    "mounts": [
+        "type=bind,source=/tmp/.X11-unix,target=/tmp/.X11-unix",
+        // "type=bind,source=${localEnv:HOME}/.Xauthority,target=/root/.Xauthority"
+    ],
+    "runArgs": ["--device=/dev/dri", "--net=host"],
+    "postCreateCommand": "git config --global --add safe.directory /workspaces/ACGC-PC-Port",
+    "remoteUser": "root"
+}
