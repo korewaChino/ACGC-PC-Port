@@ -12,6 +12,7 @@ set(CMAKE_CXX_STANDARD 17)
 # Options
 option(PC_CONSOLE "Show console window (disables -mwindows, useful for debugging)" OFF)
 option(PC_64BIT "Build as 64-bit (experimental) — requires ptr_int_t port work" OFF)
+option(PC_PIE "Build Linux executable as PIE (experimental; also builds vendored SDL2 as PIC)" OFF)
 
 # =============================================================================
 # Architecture: default 32-bit, optional 64-bit
@@ -58,10 +59,12 @@ else()
     add_compile_options(
         -fno-strict-aliasing
         -fwrapv
-        # wtf
-        -fPIE
     )
-    add_link_options(-pie)
+    if(PC_PIE)
+        message(STATUS "Building position-independent executable (PIE)")
+        add_compile_options(-fPIE)
+        add_link_options(-pie)
+    endif()
 endif()
 
 # =============================================================================
@@ -124,8 +127,13 @@ if(NOT WIN32)
         else()
             set(SDL_HOST "i386-linux-gnu")
         endif()
-        set(ENV{CC} "${CMAKE_C_COMPILER} ${SDL_CFLAGS} -fPIC")
-        set(ENV{CXX} "${CMAKE_CXX_COMPILER} ${SDL_CXXFLAGS} -fPIC")
+        if(PC_PIE)
+            set(SDL_PIC_FLAGS "-fPIC")
+        else()
+            set(SDL_PIC_FLAGS "")
+        endif()
+        set(ENV{CC} "${CMAKE_C_COMPILER} ${SDL_CFLAGS} ${SDL_PIC_FLAGS}")
+        set(ENV{CXX} "${CMAKE_CXX_COMPILER} ${SDL_CXXFLAGS} ${SDL_PIC_FLAGS}")
 
         execute_process(
                 COMMAND ${sdl2_SOURCE_DIR}/configure
@@ -511,10 +519,6 @@ endif()
 if(WIN32)
     target_link_libraries(ac_pc opengl32 winmm imm32 version setupapi)
 else()
-    # XXX: something with LLVM causes a static-init crash
-    # especially on Fedora
-    # may be related to https://github.com/llvm/llvm-project/issues/47565
-    # https://reviews.llvm.org/D105959
     target_link_libraries(ac_pc dl pthread m)
 endif()
 
