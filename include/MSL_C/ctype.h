@@ -2,6 +2,7 @@
 #define _CTYPE_H
 
 #ifdef TARGET_PC
+#undef _CTYPE_H
 #include <ctype.h> // Conflicts can happen otherwise in certain compiler versions
 #else
 

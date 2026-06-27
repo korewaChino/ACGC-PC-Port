@@ -8,6 +8,7 @@
  * The audio thread decouples sample production from the game frame,
  * so OS preemption of the game thread doesn't cause audio dropouts.
  */
+
 #include "pc_platform.h"
 #include "pc_settings.h"
 #include "jaudio_NES/audiothread.h"

@@ -11,17 +11,25 @@ set(CMAKE_CXX_STANDARD 17)
 
 # Options
 option(PC_CONSOLE "Show console window (disables -mwindows, useful for debugging)" OFF)
+option(PC_64BIT "Build as 64-bit (experimental) — requires ptr_int_t port work" OFF)
 
 # =============================================================================
-# 32-bit enforcement (required: JSystem casts pointers to u32)
+# Architecture: default 32-bit, optional 64-bit
 # =============================================================================
-if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-    message(FATAL_ERROR
-        "This project MUST be built as 32-bit (pointer-to-u32 casts in JSystem).\n"
-        "  Windows/MSYS2: Use the MINGW32 shell (not MINGW64)\n"
-        "  Linux: Use a 32-bit toolchain, e.g.:\n"
-        "    cmake .. -DCMAKE_C_COMPILER=i686-linux-gnu-gcc -DCMAKE_CXX_COMPILER=i686-linux-gnu-g++\n"
-        "    OR: cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake/Toolchain-linux32.cmake")
+if(PC_64BIT)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        message(FATAL_ERROR "PC_64BIT=ON requires a 64-bit toolchain")
+    endif()
+    message(STATUS "Building 64-bit PC port (experimental)")
+    add_compile_definitions(PC_64BIT)
+else()
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        message(FATAL_ERROR
+            "This project defaults to 32-bit (pointer-to-u32 casts in JSystem).\n"
+            "  64-bit build:  cmake .. -DPC_64BIT=ON\n"
+            "  32-bit build:  Use a 32-bit toolchain, e.g.:\n"
+            "    cmake .. -DCMAKE_C_COMPILER=i686-linux-gnu-gcc")
+    endif()
 endif()
 
 # Allow mixed C/C++ linkage
@@ -37,6 +45,7 @@ add_compile_definitions(
     F3DEX_GBI_2
     NDEBUG
     BUGFIXES        # Fix OOB reads in letter scoring tables (m_mail_check_ovl.c).
+    FIXES           # Fix pointer-vs-function-call bugs (JKRDvdRipper.cpp isErrorRetry).
     _LANGUAGE_C    # Required for N64 GBI/ultratypes headers
     PC_ENHANCEMENTS   # Optional visual improvements (MSAA, etc). Remove to get pure PC port.
     KEYBOARD_TYPING   # Physical keyboard typing in text editor. Remove for platforms without keyboards.
@@ -75,53 +84,67 @@ include_directories(
 # =============================================================================
 # Find SDL2
 # =============================================================================
-# Try system SDL2 first, then fall back to platform-specific locations
-if(WIN32)
-    set(SDL2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2/cmake" CACHE PATH "SDL2 cmake dir")
-endif()
-find_package(SDL2 QUIET)
-if(NOT SDL2_FOUND)
-    # Try pkg-config (works on both Linux and MSYS2)
-    find_package(PkgConfig QUIET)
-    if(PKG_CONFIG_FOUND)
-        pkg_check_modules(SDL2 QUIET sdl2)
-    endif()
-endif()
-if(NOT SDL2_FOUND)
+# On Linux, prefer vendored native SDL2 over sdl2-compat (system package).
+# sdl2-compat is an SDL2→SDL3 shim that pulls in Mesa/LLVM via EGL/GLX
+# and the 32-bit LLVM on some distros has a crashing static initializer.
+# The vendored SDL2 is built natively (--disable-video-wayland) and avoids
+# the SDL3/LLVM chain entirely.
+set(VENDORED_SDL2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2")
+set(VENDORED_SDL2_INCLUDE "${VENDORED_SDL2_DIR}/include/SDL2")
+set(VENDORED_SDL2_LIBRARY "${VENDORED_SDL2_DIR}/lib/libSDL2.a")
+
+if(NOT WIN32 AND EXISTS "${VENDORED_SDL2_LIBRARY}")
+    set(SDL2_FOUND TRUE)
+    set(SDL2_INCLUDE_DIRS "${VENDORED_SDL2_INCLUDE}")
+    set(SDL2_LIBRARIES "${VENDORED_SDL2_LIBRARY}")
+    message(STATUS "Using vendored SDL2: ${VENDORED_SDL2_LIBRARY}")
+else()
+    # Try system SDL2 (cmake, then pkg-config, then fallback paths)
     if(WIN32)
-        # Windows-specific fallback paths
-        # MSYS2 32-bit location
-        set(SDL2_MSYS2_DIR "C:/msys64/mingw32")
-        if(EXISTS "${SDL2_MSYS2_DIR}/include/SDL2/SDL.h")
-            set(SDL2_FOUND TRUE)
-            set(SDL2_INCLUDE_DIRS "${SDL2_MSYS2_DIR}/include/SDL2")
-            set(SDL2_LIBRARIES "${SDL2_MSYS2_DIR}/lib/libSDL2.a")
-        else()
-            # Downloaded SDL2 MinGW dev package (32-bit)
-            set(SDL2_DOWNLOAD_DIR "${DECOMP_ROOT}/../SDL2-2.30.10/i686-w64-mingw32")
-            if(EXISTS "${SDL2_DOWNLOAD_DIR}/include/SDL2/SDL.h")
+        set(SDL2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2/cmake" CACHE PATH "SDL2 cmake dir")
+    endif()
+    find_package(SDL2 QUIET)
+    if(NOT SDL2_FOUND)
+        find_package(PkgConfig QUIET)
+        if(PKG_CONFIG_FOUND)
+            pkg_check_modules(SDL2 QUIET sdl2)
+        endif()
+    endif()
+    if(NOT SDL2_FOUND)
+        if(WIN32)
+            # MSYS2 32-bit location
+            set(SDL2_MSYS2_DIR "C:/msys64/mingw32")
+            if(EXISTS "${SDL2_MSYS2_DIR}/include/SDL2/SDL.h")
                 set(SDL2_FOUND TRUE)
-                set(SDL2_INCLUDE_DIRS "${SDL2_DOWNLOAD_DIR}/include/SDL2")
-                set(SDL2_LIBRARIES "${SDL2_DOWNLOAD_DIR}/lib/libSDL2.a")
+                set(SDL2_INCLUDE_DIRS "${SDL2_MSYS2_DIR}/include/SDL2")
+                set(SDL2_LIBRARIES "${SDL2_MSYS2_DIR}/lib/libSDL2.a")
             else()
-                # Last resort: vendored SDL2 in lib/
-                set(SDL2_LOCAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2")
-                if(EXISTS "${SDL2_LOCAL_DIR}/include/SDL.h")
+                # Downloaded SDL2 MinGW dev package (32-bit)
+                set(SDL2_DOWNLOAD_DIR "${DECOMP_ROOT}/../SDL2-2.30.10/i686-w64-mingw32")
+                if(EXISTS "${SDL2_DOWNLOAD_DIR}/include/SDL2/SDL.h")
                     set(SDL2_FOUND TRUE)
-                    set(SDL2_INCLUDE_DIRS "${SDL2_LOCAL_DIR}/include")
-                    set(SDL2_LIBRARIES "${SDL2_LOCAL_DIR}/lib/libSDL2.a")
+                    set(SDL2_INCLUDE_DIRS "${SDL2_DOWNLOAD_DIR}/include/SDL2")
+                    set(SDL2_LIBRARIES "${SDL2_DOWNLOAD_DIR}/lib/libSDL2.a")
+                else()
+                    # Last resort: vendored SDL2 in lib/
+                    set(SDL2_LOCAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2")
+                    if(EXISTS "${SDL2_LOCAL_DIR}/include/SDL.h")
+                        set(SDL2_FOUND TRUE)
+                        set(SDL2_INCLUDE_DIRS "${SDL2_LOCAL_DIR}/include")
+                        set(SDL2_LIBRARIES "${SDL2_LOCAL_DIR}/lib/libSDL2.a")
+                    endif()
                 endif()
             endif()
         endif()
-    endif()
 
-    if(NOT SDL2_FOUND)
-        message(FATAL_ERROR
-            "SDL2 not found!\n"
-            "  Linux:         sudo apt install libsdl2-dev:i386  (Debian/Ubuntu)\n"
-            "                 sudo dnf install SDL2-devel.i686   (Fedora)\n"
-            "  Windows/MSYS2: pacman -S mingw-w64-i686-SDL2\n"
-            "  Or download SDL2 development libraries to ${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2")
+        if(NOT SDL2_FOUND)
+            message(FATAL_ERROR
+                "SDL2 not found!\n"
+                "  Linux:         sudo apt install libsdl2-dev:i386  (Debian/Ubuntu)\n"
+                "                 sudo dnf install SDL2-devel.i686   (Fedora)\n"
+                "  Windows/MSYS2: pacman -S mingw-w64-i686-SDL2\n"
+                "  Or download SDL2 development libraries to ${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2")
+        endif()
     endif()
 endif()
 include_directories(${SDL2_INCLUDE_DIRS})
@@ -416,6 +439,16 @@ add_executable(ac_pc
     ${RC_FILE}
 )
 
+# Force-include pc_linux_compat.h for all C++ sources on Linux.
+# Provides <cctype>, <cstring>, <cstdlib> and MSVC-isms the decomp
+# code expects (e.g. _tolower, strtol).  Safe to apply project-wide;
+# the header itself has TARGET_PC/__cplusplus guards and is a no-op on Windows.
+if(NOT WIN32)
+    target_compile_options(ac_pc PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:-include;${CMAKE_CURRENT_SOURCE_DIR}/include/pc_linux_compat.h>
+    )
+endif()
+
 # Link SDL2 without SDL2main (we define SDL_MAIN_HANDLED)
 if(TARGET SDL2::SDL2)
     target_link_libraries(ac_pc glad SDL2::SDL2)
@@ -427,8 +460,12 @@ endif()
 if(WIN32)
     target_link_libraries(ac_pc opengl32 winmm imm32 version setupapi)
 else()
-    find_package(OpenGL REQUIRED)
-    target_link_libraries(ac_pc OpenGL::GL dl pthread m)
+    # Do NOT link OpenGL directly on Linux: the vendored static SDL2 handles
+    # GL loading at runtime via dlopen("libGL.so.1").  Direct linking pulls
+    # in libGLX_mesa → libgallium → libLLVM at startup, which triggers a
+    # static-init crash in 32-bit LLVM on some distros.
+    # pc_main.c handles LLVM preloading before SDL_Init to work around this.
+    target_link_libraries(ac_pc dl pthread m)
 endif()
 
 set_target_properties(ac_pc PROPERTIES

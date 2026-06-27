@@ -1,5 +1,9 @@
 #include <MSL_C/ctype.h>
 #include <string.h>
+/* Linux: _tolower is MSVC-only */
+#ifndef _WIN32
+#define _tolower(c) tolower((unsigned char)(c))
+#endif
 #include "JSystem/JKernel/JKRFileLoader.h"
 
 JSUList<JKRFileLoader> JKRFileLoader::sVolumeList;

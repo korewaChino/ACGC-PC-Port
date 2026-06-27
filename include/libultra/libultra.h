@@ -22,8 +22,13 @@ extern "C" {
 
 typedef u64 Z_OSTime;
 
+/* bcmp/bcopy conflict with POSIX headers on Linux (const mismatch) */
+#ifndef __linux__
 int bcmp(void* v1, void* v2, u32 size);
 void bcopy(void* src, void* dst, size_t n);
+#else
+#include <strings.h>
+#endif
 void bzero(void* ptr, size_t size);
 void osSyncPrintf(const char* fmt, ...);
 void osWritebackDCache(void* vaddr, u32 nbytes);

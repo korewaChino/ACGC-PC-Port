@@ -1,0 +1,53 @@
+# Build artifacts (CMake, ninja, etc.)
+build/
+build32/
+build64/
+*.o
+*.a
+*.so
+*.elf
+*.dol
+*.exe
+.ninja_*
+build.ninja
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+Makefile
+
+# IDE / editor
+.idea/
+.vs/
+.vscode/
+.direnv/
+.envrc
+
+# Git
+.git/
+.gitmodules
+.gitignore
+
+# Python / tooling caches
+__pycache__/
+.mypy_cache/
+.cache/
+*.pyc
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Generated / downloaded
+orig/
+include/PR/
+include/gcc/
+include/compiler/gcc/stdlib.h
+
+# Misc
+temp/
+ctx.*
+*.ctx
+objdiff.json
+*.txt
+!requirements.txt

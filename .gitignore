@@ -21,6 +21,7 @@ orig/*/*
 # Build files
 build/
 build32/
+build64/
 .ninja_*
 build.ninja
 
@@ -31,6 +32,7 @@ ctx.*
 # Generated configs
 objdiff.json
 compile_commands.json
+.clangd
 
 # Miscellaneous
 /*.txt
@@ -39,6 +41,9 @@ compile_commands.json
 
 # For saving work files into (like IDB)
 temp/
+
+# Vendored SDL2 (built by Containerfile at container build time)
+pc/lib/SDL2/
 
 # Ignore the N64 SDK headers since we download them
 # NOTE: include/PR/gbi.h and include/PR/ultratypes.h are force-tracked

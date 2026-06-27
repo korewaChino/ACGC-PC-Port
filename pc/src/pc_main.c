@@ -1,4 +1,6 @@
 /* pc_main.c - PC entry point: SDL2/GL init and boot sequence */
+#define _GNU_SOURCE
+#include <dlfcn.h>
 #include "pc_platform.h"
 #include "pc_gx_internal.h"
 #include "pc_texture_pack.h"
@@ -41,8 +43,11 @@ void pc_platform_init(void) {
 
 #endif
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO | SDL_INIT_TIMER) < 0) {
-        fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
-        exit(1);
+        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_TIMER) < 0) {
+            fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
+            exit(1);
+        }
+        fprintf(stderr, "SDL_Init: audio unavailable (continuing without sound)\n");
     }
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);

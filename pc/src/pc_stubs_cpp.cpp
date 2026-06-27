@@ -32,3 +32,12 @@ void JKRHeap::destroy() {}
 JKRTask::Request* JKRTask::searchBlank() {
     return nullptr;
 }
+
+/* JUTRomFont static members — declared in JUTFont.h but never defined in decomp.
+ * The Metrowerks compiler tolerated this; GCC requires explicit definitions. */
+#include "JSystem/JUtility/JUTFont.h"
+
+OSFontHeader* JUTRomFont::spFontHeader_ = nullptr;
+JUTRomFont::AboutEncoding* JUTRomFont::spAboutEncoding_ = nullptr;
+u32 JUTRomFont::suFontHeaderRefered_ = 0;
+JUTRomFont::AboutEncoding JUTRomFont::saoAboutEncoding_[2] = {};
