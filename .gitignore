@@ -32,6 +32,7 @@ ctx.*
 # Generated configs
 objdiff.json
 compile_commands.json
+.clangd
 
 # Miscellaneous
 /*.txt
@@ -41,6 +42,9 @@ compile_commands.json
 # For saving work files into (like IDB)
 temp/
 
+# Vendored SDL2 (built by Containerfile at container build time)
+pc/lib/SDL2/
+
 # Ignore the N64 SDK headers since we download them
 # NOTE: include/PR/gbi.h and include/PR/ultratypes.h are force-tracked
 # (git add -f) because they have TARGET_PC modifications for LE bitfields.
@@ -48,3 +52,7 @@ temp/
 include/PR/
 include/gcc/
 include/compiler/gcc/stdlib.h
+rom/
+
+keybindings.ini
+settings.ini

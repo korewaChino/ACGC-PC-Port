@@ -1,0 +1,47 @@
+# Containerfile.dev — Dev container for the ACGC PC port
+#
+# Installs all build dependencies + GDB for debugging.  The project source
+# is mounted at runtime by the dev container, NOT baked into the image.
+#
+# After entering the container, build with:
+#   cd pc && mkdir -p build32 && cd build32
+#   cmake .. -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
+#            -DCMAKE_C_FLAGS="-m32 -g" \
+#            -DCMAKE_CXX_FLAGS="-m32 -g -isystem /usr/include/c++/16/i686-redhat-linux" \
+#            -DCMAKE_SKIP_RPATH=ON -DCMAKE_BUILD_TYPE=Debug
+#   make -j$(nproc)
+#
+# Then run:
+#   cd pc/build32/bin
+#   ./AnimalCrossing --verbose
+#   gdb --args ./AnimalCrossing --verbose
+
+FROM fedora:43
+
+RUN dnf install -y \
+    gcc gcc-c++ cmake make ninja-build \
+    glibc.i686 glibc-devel.i686 glibc-devel.x86_64 \
+    libstdc++-devel.i686 libstdc++.i686 libgcc.i686 \
+    libatomic.i686 \
+    libX11-devel.i686 libXext-devel.i686 libXrandr-devel.i686 \
+    libXcursor-devel.i686 libXi-devel.i686 libXinerama-devel.i686 \
+    libXxf86vm-devel.i686 \
+    clangd \
+    xauth xdpyinfo xclock \
+    which \
+    file \
+    @development-tools \
+    clang-tools-extra \
+    strace \
+    gdb \
+    lldb \
+    alsa-lib-devel.i686 pulseaudio-libs-devel.i686 \
+    mesa-libGL-devel.i686 mesa-libEGL-devel.i686 mesa-dri-drivers.i686 \
+    curl python3 gdb git \
+    && \
+    echo 'Testing 32-bit C compile...' && \
+    echo 'int main(){return 0;}' | gcc -m32 -x c - -o /tmp/test32 && \
+    /tmp/test32 && echo '32-bit works!' && \
+    dnf clean all
+
+WORKDIR /workspace
